@@ -13,6 +13,8 @@ export const handler = async function(event, context) {
     try {
         const data = JSON.parse(event.body);
         const { name, email, message, image, timestamp, filename } = data;
+        
+        console.log('Received submission with filename:', filename);
 
         // 基本數據驗證
         if (!name || !email || !message) {
@@ -32,34 +34,44 @@ export const handler = async function(event, context) {
 
         // 如果有圖片，保存圖片文件
         if (image && filename) {
+            console.log('Processing image:', filename);
+            
             // 從Base64中提取實際的圖片數據
             const base64Data = image.split(',')[1];
             
-            // 保存圖片到GitHub倉庫
             try {
-                await octokit.repos.createOrUpdateFileContents({
-                    owner: "andy1388", // 替換為您的GitHub用戶名
-                    repo: "html_1",    // 替換為您的倉庫名
-                    path: `images/${filename}`, // 圖片保存路徑
+                // 保存圖片到GitHub倉庫
+                const imageResponse = await octokit.repos.createOrUpdateFileContents({
+                    owner: "andy1388",
+                    repo: "html_1",
+                    path: `images/${filename}`,
                     message: `Upload image: ${filename}`,
                     content: base64Data,
-                    branch: "main"     // 或您的目標分支名
+                    branch: "main"
                 });
 
-                // 在JSON中添加圖片引用
+                console.log('Image uploaded successfully:', imageResponse.data.content.path);
+
+                // 在JSON中添加完整的圖片URL
                 submissionData.imageUrl = `images/${filename}`;
+                console.log('Image URL saved:', submissionData.imageUrl);
             } catch (error) {
                 console.error("保存圖片失敗:", error);
                 return {
                     statusCode: 500,
-                    body: JSON.stringify({ message: "圖片保存失敗" })
+                    body: JSON.stringify({ 
+                        message: "圖片保存失敗",
+                        error: error.message 
+                    })
                 };
             }
         }
 
         // 保存提交數據為JSON文件
         const jsonFilename = `submissions/${timestamp.replace(/[:.]/g, '-')}Z.json`;
-        await octokit.repos.createOrUpdateFileContents({
+        console.log('Saving submission data to:', jsonFilename);
+
+        const jsonResponse = await octokit.repos.createOrUpdateFileContents({
             owner: "andy1388",
             repo: "html_1",
             path: jsonFilename,
@@ -68,15 +80,23 @@ export const handler = async function(event, context) {
             branch: "main"
         });
 
+        console.log('Submission data saved successfully');
+
         return {
             statusCode: 200,
-            body: JSON.stringify({ message: "提交成功" })
+            body: JSON.stringify({ 
+                message: "提交成功",
+                imageUrl: submissionData.imageUrl || null
+            })
         };
     } catch (error) {
         console.error("Error:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: "服務器錯誤" })
+            body: JSON.stringify({ 
+                message: "服務器錯誤",
+                error: error.message
+            })
         };
     }
 }; 
