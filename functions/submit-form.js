@@ -10,14 +10,33 @@ const octokit = new Octokit({
 });
 
 export const handler = async function(event, context) {
-    // 簡化的 CORS 頭部
+    // 設置 CORS 頭部
     const headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
         'Content-Type': 'application/json'
     };
 
-    // 不再需要特別處理 OPTIONS 請求，因為 Netlify 配置會處理它
+    // 處理 OPTIONS 請求
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers,
+            body: ''
+        };
+    }
 
     try {
+        // 檢查請求方法
+        if (event.httpMethod !== 'POST') {
+            return {
+                statusCode: 405,
+                headers,
+                body: JSON.stringify({ message: '方法不允許' })
+            };
+        }
+
         // 解析請求數據
         let data;
         try {
@@ -28,15 +47,6 @@ export const handler = async function(event, context) {
                 statusCode: 400,
                 headers,
                 body: JSON.stringify({ message: '無效的請求數據格式' })
-            };
-        }
-
-        // 檢查請求方法
-        if (event.httpMethod !== 'POST') {
-            return {
-                statusCode: 405,
-                headers,
-                body: JSON.stringify({ message: '方法不允許' })
             };
         }
 
