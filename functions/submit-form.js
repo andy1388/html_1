@@ -11,26 +11,40 @@ const octokit = new Octokit({
 
 export const handler = async function(event, context) {
     try {
+        // 首先記錄收到的請求數據（注意不要記錄敏感信息）
+        console.log('Received request with fields:', {
+            hasName: !!event.body?.name,
+            hasEmail: !!event.body?.email,
+            hasMessage: !!event.body?.message,
+            hasImage: !!event.body?.image,
+            hasFilename: !!event.body?.filename
+        });
+
         // 檢查 Token
         if (!process.env.GITHUB_TOKEN) {
             console.error('GitHub Token is missing');
             throw new Error('GitHub Token 未配置');
         }
 
-        const data = JSON.parse(event.body);
+        // 嘗試解析請求數據
+        let data;
+        try {
+            data = JSON.parse(event.body);
+            console.log('Successfully parsed request body');
+        } catch (parseError) {
+            console.error('Failed to parse request body:', parseError);
+            throw new Error('請求數據格式無效');
+        }
+
         const { name, email, message, image, timestamp, filename } = data;
 
-        // 基本驗證
-        if (!process.env.GITHUB_TOKEN) {
-            throw new Error('未配置 GitHub Token');
-        }
-
-        if (!name || !email || !message) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ message: "必填字段缺失" })
-            };
-        }
+        // 記錄基本驗證結果
+        console.log('Validation check:', {
+            name: !!name,
+            email: !!email,
+            message: !!message,
+            timestamp: !!timestamp
+        });
 
         // 準備提交數據
         const submissionData = {
@@ -40,7 +54,27 @@ export const handler = async function(event, context) {
             timestamp
         };
 
-        // 檢查圖片數據
+        // 先嘗試保存文字數據
+        try {
+            const jsonFilename = `submissions/${timestamp.replace(/[:.]/g, '-')}Z.json`;
+            console.log('Attempting to save submission data to:', jsonFilename);
+            
+            await octokit.repos.createOrUpdateFileContents({
+                owner: "andy1388",
+                repo: "html_1",
+                path: jsonFilename,
+                message: `New submission from ${name}`,
+                content: Buffer.from(JSON.stringify(submissionData, null, 2)).toString('base64'),
+                branch: "main"
+            });
+            
+            console.log('Successfully saved submission data');
+        } catch (submissionError) {
+            console.error('Failed to save submission:', submissionError);
+            throw new Error(`提交數據保存失敗: ${submissionError.message}`);
+        }
+
+        // 如果有圖片才處理圖片上傳
         if (image && filename) {
             console.log('Processing image:', {
                 filename,
@@ -148,17 +182,6 @@ export const handler = async function(event, context) {
             }
         }
 
-        // 保存提交數據
-        const jsonFilename = `submissions/${timestamp.replace(/[:.]/g, '-')}Z.json`;
-        await octokit.repos.createOrUpdateFileContents({
-            owner: "andy1388",
-            repo: "html_1",
-            path: jsonFilename,
-            message: `New submission from ${name}`,
-            content: Buffer.from(JSON.stringify(submissionData, null, 2)).toString('base64'),
-            branch: "main"
-        });
-
         return {
             statusCode: 200,
             body: JSON.stringify({
@@ -170,8 +193,11 @@ export const handler = async function(event, context) {
     } catch (error) {
         console.error('Handler error:', {
             message: error.message,
-            stack: error.stack
+            stack: error.stack,
+            type: error.constructor.name,
+            details: error.response?.data || error.data
         });
+        
         return {
             statusCode: 500,
             body: JSON.stringify({
