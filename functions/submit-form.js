@@ -10,41 +10,43 @@ const octokit = new Octokit({
 });
 
 export const handler = async function(event, context) {
-    try {
-        // 首先記錄收到的請求數據（注意不要記錄敏感信息）
-        console.log('Received request with fields:', {
-            hasName: !!event.body?.name,
-            hasEmail: !!event.body?.email,
-            hasMessage: !!event.body?.message,
-            hasImage: !!event.body?.image,
-            hasFilename: !!event.body?.filename
-        });
+    // 添加 CORS 頭部
+    const headers = {
+        'Access-Control-Allow-Origin': 'https://andy1388.github.io',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    };
 
+    // 處理 OPTIONS 請求
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers,
+            body: ''
+        };
+    }
+
+    try {
         // 檢查 Token
         if (!process.env.GITHUB_TOKEN) {
             console.error('GitHub Token is missing');
             throw new Error('GitHub Token 未配置');
         }
 
-        // 嘗試解析請求數據
-        let data;
-        try {
-            data = JSON.parse(event.body);
-            console.log('Successfully parsed request body');
-        } catch (parseError) {
-            console.error('Failed to parse request body:', parseError);
-            throw new Error('請求數據格式無效');
-        }
-
+        const data = JSON.parse(event.body);
         const { name, email, message, image, timestamp, filename } = data;
 
-        // 記錄基本驗證結果
-        console.log('Validation check:', {
-            name: !!name,
-            email: !!email,
-            message: !!message,
-            timestamp: !!timestamp
-        });
+        // 基本驗證
+        if (!process.env.GITHUB_TOKEN) {
+            throw new Error('未配置 GitHub Token');
+        }
+
+        if (!name || !email || !message) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: "必填字段缺失" })
+            };
+        }
 
         // 準備提交數據
         const submissionData = {
@@ -54,38 +56,13 @@ export const handler = async function(event, context) {
             timestamp
         };
 
-        // 先嘗試保存文字數據
-        try {
-            const jsonFilename = `submissions/${timestamp.replace(/[:.]/g, '-')}Z.json`;
-            console.log('Attempting to save submission data to:', jsonFilename);
-            
-            await octokit.repos.createOrUpdateFileContents({
-                owner: "andy1388",
-                repo: "html_1",
-                path: jsonFilename,
-                message: `New submission from ${name}`,
-                content: Buffer.from(JSON.stringify(submissionData, null, 2)).toString('base64'),
-                branch: "main"
-            });
-            
-            console.log('Successfully saved submission data');
-        } catch (submissionError) {
-            console.error('Failed to save submission:', submissionError);
-            throw new Error(`提交數據保存失敗: ${submissionError.message}`);
-        }
-
-        // 如果有圖片才處理圖片上傳
+        // 檢查圖片數據
         if (image && filename) {
             console.log('Processing image:', {
                 filename,
-                imageLength: image?.length || 0,
-                hasBase64Prefix: image?.startsWith('data:image/') || false
+                imageLength: image.length,
+                hasBase64Prefix: image.startsWith('data:image/')
             });
-
-            // 验证图片数据格式
-            if (!image.startsWith('data:image/')) {
-                throw new Error('無效的圖片格式');
-            }
 
             const base64Data = image.split(',')[1];
             if (!base64Data) {
@@ -93,85 +70,26 @@ export const handler = async function(event, context) {
             }
 
             try {
-                // 首先检查仓库访问权限
-                try {
-                    await octokit.repos.get({
-                        owner: "andy1388",
-                        repo: "html_1"
-                    });
-                } catch (repoError) {
-                    console.error('Repository access error:', repoError);
-                    throw new Error('無法訪問倉庫，請檢查權限設置');
-                }
+                // 嘗試上傳圖片
+                const imageUploadResponse = await octokit.repos.createOrUpdateFileContents({
+                    owner: "andy1388",
+                    repo: "html_1",
+                    path: `images/${filename}`,
+                    message: `Upload image: ${filename}`,
+                    content: base64Data,
+                    branch: "main"
+                });
 
-                // 检查images目录是否存在，如果不存在则创建
-                try {
-                    await octokit.repos.getContent({
-                        owner: "andy1388",
-                        repo: "html_1",
-                        path: "images"
-                    });
-                } catch (dirError) {
-                    // 如果目录不存在，创建它
-                    if (dirError.status === 404) {
-                        await octokit.repos.createOrUpdateFileContents({
-                            owner: "andy1388",
-                            repo: "html_1",
-                            path: "images/.gitkeep",
-                            message: "Create images directory",
-                            content: "",
-                            branch: "main"
-                        });
-                    }
-                }
+                console.log('Image upload response:', {
+                    status: imageUploadResponse.status,
+                    path: imageUploadResponse.data?.content?.path
+                });
 
-                // 尝试上传图片
-                let retryCount = 0;
-                const maxRetries = 3;
-                let imageUploadResponse;
-
-                while (retryCount < maxRetries) {
-                    try {
-                        // 检查文件是否已存在
-                        try {
-                            await octokit.repos.getContent({
-                                owner: "andy1388",
-                                repo: "html_1",
-                                path: `images/${filename}`
-                            });
-                            // 如果文件存在，修改文件名
-                            filename = `${Date.now()}-${filename}`;
-                        } catch (fileError) {
-                            // 文件不存在，可以继续
-                        }
-
-                        imageUploadResponse = await octokit.repos.createOrUpdateFileContents({
-                            owner: "andy1388",
-                            repo: "html_1",
-                            path: `images/${filename}`,
-                            message: `Upload image: ${filename}`,
-                            content: base64Data,
-                            branch: "main"
-                        });
-                        break;
-                    } catch (err) {
-                        console.error(`Upload attempt ${retryCount + 1} failed:`, err);
-                        retryCount++;
-                        if (retryCount === maxRetries) {
-                            throw new Error(`上傳失敗: ${err.message}`);
-                        }
-                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-                    }
-                }
-
-                if (!imageUploadResponse?.data?.content) {
+                if (imageUploadResponse.data.content) {
+                    console.log('Image uploaded successfully');
+                } else {
                     throw new Error('圖片上傳響應無效');
                 }
-
-                // 使用完整的原始URL
-                submissionData.imageUrl = `https://raw.githubusercontent.com/andy1388/html_1/main/images/${filename}`;
-                console.log('Image URL:', submissionData.imageUrl);
-
             } catch (uploadError) {
                 console.error('Image upload error:', {
                     message: uploadError.message,
@@ -182,8 +100,20 @@ export const handler = async function(event, context) {
             }
         }
 
+        // 保存提交數據
+        const jsonFilename = `submissions/${timestamp.replace(/[:.]/g, '-')}Z.json`;
+        await octokit.repos.createOrUpdateFileContents({
+            owner: "andy1388",
+            repo: "html_1",
+            path: jsonFilename,
+            message: `New submission from ${name}`,
+            content: Buffer.from(JSON.stringify(submissionData, null, 2)).toString('base64'),
+            branch: "main"
+        });
+
         return {
             statusCode: 200,
+            headers,
             body: JSON.stringify({
                 message: "提交成功",
                 imageUrl: submissionData.imageUrl || null
@@ -193,13 +123,12 @@ export const handler = async function(event, context) {
     } catch (error) {
         console.error('Handler error:', {
             message: error.message,
-            stack: error.stack,
-            type: error.constructor.name,
-            details: error.response?.data || error.data
+            stack: error.stack
         });
         
         return {
             statusCode: 500,
+            headers,
             body: JSON.stringify({
                 message: "提交失敗",
                 error: error.message,
