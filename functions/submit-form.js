@@ -10,51 +10,33 @@ const octokit = new Octokit({
 });
 
 export const handler = async function(event, context) {
-    // 允許所有來源的 CORS 請求
-    const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',  // 改為允許所有來源
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Max-Age': '86400',
-        'Access-Control-Allow-Credentials': 'true'
-    };
-
-    // 如果是預檢請求，立即返回
-    if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 204,  // 使用 204 No Content
-            headers: corsHeaders,
-            body: ''
-        };
-    }
-
-    // 確保每個響應都包含 CORS 頭部
+    // 簡化的 CORS 頭部
     const headers = {
-        ...corsHeaders,
         'Content-Type': 'application/json'
     };
 
-    try {
-        // 檢查請求方法
-        if (event.httpMethod !== 'POST') {
-            return {
-                statusCode: 405,
-                headers,
-                body: JSON.stringify({ message: '方法不允許' })
-            };
-        }
+    // 不再需要特別處理 OPTIONS 請求，因為 Netlify 配置會處理它
 
+    try {
         // 解析請求數據
         let data;
         try {
             data = JSON.parse(event.body);
             console.log('Received data:', data);
         } catch (parseError) {
-            console.error('Parse error:', parseError);
             return {
                 statusCode: 400,
                 headers,
                 body: JSON.stringify({ message: '無效的請求數據格式' })
+            };
+        }
+
+        // 檢查請求方法
+        if (event.httpMethod !== 'POST') {
+            return {
+                statusCode: 405,
+                headers,
+                body: JSON.stringify({ message: '方法不允許' })
             };
         }
 
@@ -104,7 +86,7 @@ export const handler = async function(event, context) {
         console.error('Handler error:', error);
         return {
             statusCode: 500,
-            headers,  // 確保錯誤響應也包含 CORS 頭部
+            headers,
             body: JSON.stringify({
                 message: '提交失敗',
                 error: error.message
