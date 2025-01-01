@@ -10,17 +10,27 @@ const octokit = new Octokit({
 });
 
 export const handler = async function(event, context) {
-    // 只保留 Content-Type 頭部
+    // 添加基本的響應頭
     const headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': '*',
+        'Access-Control-Allow-Headers': '*'
     };
 
+    // 處理 OPTIONS 請求
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers,
+            body: ''
+        };
+    }
+
     try {
-        // 解析請求數據
         const data = JSON.parse(event.body);
         console.log('Received data:', data);
 
-        // 基本驗證
         if (!data.name || !data.email || !data.message) {
             return {
                 statusCode: 400,
@@ -29,7 +39,6 @@ export const handler = async function(event, context) {
             };
         }
 
-        // 準備提交數據
         const submissionData = {
             name: data.name,
             email: data.email,
@@ -37,33 +46,21 @@ export const handler = async function(event, context) {
             timestamp: data.timestamp || new Date().toISOString()
         };
 
-        // 保存提交數據
         const jsonFilename = `submissions/${submissionData.timestamp.replace(/[:.]/g, '-')}Z.json`;
         
-        try {
-            await octokit.repos.createOrUpdateFileContents({
-                owner: "andy1388",
-                repo: "html_1",
-                path: jsonFilename,
-                message: `New submission from ${submissionData.name}`,
-                content: Buffer.from(JSON.stringify(submissionData, null, 2)).toString('base64'),
-                branch: "main"
-            });
-        } catch (githubError) {
-            console.error('GitHub API error:', githubError);
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ message: '保存數據失敗' })
-            };
-        }
+        await octokit.repos.createOrUpdateFileContents({
+            owner: "andy1388",
+            repo: "html_1",
+            path: jsonFilename,
+            message: `New submission from ${submissionData.name}`,
+            content: Buffer.from(JSON.stringify(submissionData, null, 2)).toString('base64'),
+            branch: "main"
+        });
 
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({
-                message: "提交成功"
-            })
+            body: JSON.stringify({ message: "提交成功" })
         };
 
     } catch (error) {
