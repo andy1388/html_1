@@ -10,22 +10,10 @@ const octokit = new Octokit({
 });
 
 export const handler = async function(event, context) {
-    // 設置 CORS 頭部
-    const corsHeaders = {
-        'Access-Control-Allow-Origin': 'https://andy1388.github.io',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+    // 只保留 Content-Type 頭部
+    const headers = {
         'Content-Type': 'application/json'
     };
-
-    // 處理 OPTIONS 請求
-    if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers: corsHeaders,
-            body: ''
-        };
-    }
 
     try {
         // 解析請求數據
@@ -36,7 +24,7 @@ export const handler = async function(event, context) {
         if (!data.name || !data.email || !data.message) {
             return {
                 statusCode: 400,
-                headers: corsHeaders,
+                headers,
                 body: JSON.stringify({ message: "必填字段缺失" })
             };
         }
@@ -65,14 +53,14 @@ export const handler = async function(event, context) {
             console.error('GitHub API error:', githubError);
             return {
                 statusCode: 500,
-                headers: corsHeaders,
+                headers,
                 body: JSON.stringify({ message: '保存數據失敗' })
             };
         }
 
         return {
             statusCode: 200,
-            headers: corsHeaders,
+            headers,
             body: JSON.stringify({
                 message: "提交成功"
             })
@@ -82,7 +70,7 @@ export const handler = async function(event, context) {
         console.error('Handler error:', error);
         return {
             statusCode: 500,
-            headers: corsHeaders,
+            headers,
             body: JSON.stringify({
                 message: '提交失敗',
                 error: error.message
