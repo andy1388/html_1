@@ -1,4 +1,6 @@
 @echo off
+:: 设置中文编码
+chcp 65001
 title Git 自动拉取工具
 
 :: 设置颜色
