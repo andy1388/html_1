@@ -10,17 +10,18 @@ const octokit = new Octokit({
 });
 
 export const handler = async function(event, context) {
-    // 添加 CORS 頭部
+    // 修改 CORS 頭部
     const headers = {
-        'Access-Control-Allow-Origin': 'https://andy1388.github.io',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        'Access-Control-Allow-Origin': '*',  // 暫時允許所有來源
+        'Access-Control-Allow-Headers': '*',
+        'Access-Control-Allow-Methods': '*',
+        'Access-Control-Max-Age': '86400'
     };
 
     // 處理 OPTIONS 請求
     if (event.httpMethod === 'OPTIONS') {
         return {
-            statusCode: 200,
+            statusCode: 204,  // 使用 204 No Content
             headers,
             body: ''
         };
