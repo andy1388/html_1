@@ -100,8 +100,9 @@
                             <p><strong>姓名：</strong>${submission.name}</p>
                             <p><strong>郵箱：</strong>${submission.email}</p>
                             <p><strong>留言：</strong>${submission.message}</p>
-                            ${submission.image ? `<div class="submission-image">
-                                <img src="${submission.image}" alt="上傳的圖片" style="max-width: 300px; max-height: 300px;">
+                            ${submission.imageUrl ? `<div class="submission-image">
+                                <img src="https://raw.githubusercontent.com/andy1388/html_1/main/${submission.imageUrl}" 
+                                     alt="上傳的圖片" style="max-width: 300px; max-height: 300px;">
                             </div>` : ''}
                             <p class="timestamp">提交時間：${timestamp.toLocaleString('zh-TW')}</p>
                         `;
