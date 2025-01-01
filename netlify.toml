@@ -2,13 +2,18 @@
   functions = "functions"
   publish = "."
 
-# 添加代理規則
 [[redirects]]
-  from = "/api/*"
+  from = "/*"
   to = "/.netlify/functions/:splat"
   status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "https://andy1388.github.io"}
+  methods = ["POST", "OPTIONS"]
 
 [[headers]]
-  for = "/*"
+  for = "/.netlify/functions/*"
     [headers.values]
-    Access-Control-Allow-Origin = "*" 
+    Access-Control-Allow-Origin = "https://andy1388.github.io"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+    Access-Control-Max-Age = "86400" 
