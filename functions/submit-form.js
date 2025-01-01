@@ -13,9 +13,8 @@ export const handler = async function(event, context) {
     // 設置基本的 CORS 響應頭
     const corsHeaders = {
         'Access-Control-Allow-Origin': 'https://andy1388.github.io',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Max-Age': '86400'
+        'Access-Control-Allow-Methods': '*',
+        'Access-Control-Allow-Headers': '*'
     };
 
     // 處理預檢請求
@@ -34,21 +33,13 @@ export const handler = async function(event, context) {
             'Content-Type': 'application/json'
         };
 
-        if (!process.env.GITHUB_TOKEN) {
-            console.error('GitHub Token is missing');
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ message: 'GitHub Token 未配置' })
-            };
-        }
-
         // 解析請求數據
         let data;
         try {
             data = JSON.parse(event.body);
+            console.log('Received data:', data); // 添加日誌
         } catch (parseError) {
-            console.error('Failed to parse request body:', parseError);
+            console.error('Parse error:', parseError);
             return {
                 statusCode: 400,
                 headers,
@@ -56,10 +47,8 @@ export const handler = async function(event, context) {
             };
         }
 
-        const { name, email, message, timestamp } = data;
-
         // 基本驗證
-        if (!name || !email || !message) {
+        if (!data.name || !data.email || !data.message) {
             return {
                 statusCode: 400,
                 headers,
@@ -69,22 +58,28 @@ export const handler = async function(event, context) {
 
         // 準備提交數據
         const submissionData = {
-            name,
-            email,
-            message,
-            timestamp
+            name: data.name,
+            email: data.email,
+            message: data.message,
+            timestamp: data.timestamp || new Date().toISOString()
         };
 
         // 保存提交數據
-        const jsonFilename = `submissions/${timestamp.replace(/[:.]/g, '-')}Z.json`;
-        await octokit.repos.createOrUpdateFileContents({
-            owner: "andy1388",
-            repo: "html_1",
-            path: jsonFilename,
-            message: `New submission from ${name}`,
-            content: Buffer.from(JSON.stringify(submissionData, null, 2)).toString('base64'),
-            branch: "main"
-        });
+        const jsonFilename = `submissions/${submissionData.timestamp.replace(/[:.]/g, '-')}Z.json`;
+        
+        try {
+            await octokit.repos.createOrUpdateFileContents({
+                owner: "andy1388",
+                repo: "html_1",
+                path: jsonFilename,
+                message: `New submission from ${submissionData.name}`,
+                content: Buffer.from(JSON.stringify(submissionData, null, 2)).toString('base64'),
+                branch: "main"
+            });
+        } catch (githubError) {
+            console.error('GitHub API error:', githubError);
+            throw new Error('保存數據失敗');
+        }
 
         return {
             statusCode: 200,
