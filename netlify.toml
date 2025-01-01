@@ -5,3 +5,10 @@
 [dev]
   functions = "functions"
   publish = "." 
+
+[[headers]]
+  for = "/*"
+    [headers.values]
+    Access-Control-Allow-Origin = "https://andy1388.github.io"
+    Access-Control-Allow-Headers = "Content-Type"
+    Access-Control-Allow-Methods = "POST, OPTIONS" 

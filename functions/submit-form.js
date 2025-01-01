@@ -33,17 +33,26 @@ export const handler = async function(event, context) {
             throw new Error('GitHub Token 未配置');
         }
 
-        const data = JSON.parse(event.body);
+        // 解析請求數據
+        let data;
+        try {
+            data = JSON.parse(event.body);
+        } catch (parseError) {
+            console.error('Failed to parse request body:', parseError);
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ message: "無效的請求數據格式" })
+            };
+        }
+
         const { name, email, message, image, timestamp, filename } = data;
 
         // 基本驗證
-        if (!process.env.GITHUB_TOKEN) {
-            throw new Error('未配置 GitHub Token');
-        }
-
         if (!name || !email || !message) {
             return {
                 statusCode: 400,
+                headers,
                 body: JSON.stringify({ message: "必填字段缺失" })
             };
         }
