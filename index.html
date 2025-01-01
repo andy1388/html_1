@@ -208,14 +208,14 @@
                     filename: imageFile ? `${Date.now()}-${imageFile.name}` : ''
                 };
 
-                console.log('Sending request to:', 'https://subtle-caramel-914e7d.netlify.app/api/submit-form');
+                console.log('Sending request to:', 'https://subtle-caramel-914e7d.netlify.app/.netlify/functions/submit-form');
                 console.log('Request data:', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     dataSize: JSON.stringify(formData).length
                 });
 
-                const response = await fetch('https://subtle-caramel-914e7d.netlify.app/api/submit-form', {
+                const response = await fetch('https://subtle-caramel-914e7d.netlify.app/.netlify/functions/submit-form', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json'
