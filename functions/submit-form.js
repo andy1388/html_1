@@ -44,9 +44,14 @@ export const handler = async function(event, context) {
         if (image && filename) {
             console.log('Processing image:', {
                 filename,
-                imageLength: image.length,
-                hasBase64Prefix: image.startsWith('data:image/')
+                imageLength: image?.length || 0,
+                hasBase64Prefix: image?.startsWith('data:image/') || false
             });
+
+            // 验证图片数据格式
+            if (!image.startsWith('data:image/')) {
+                throw new Error('無效的圖片格式');
+            }
 
             const base64Data = image.split(',')[1];
             if (!base64Data) {
@@ -54,26 +59,39 @@ export const handler = async function(event, context) {
             }
 
             try {
-                // 嘗試上傳圖片
-                const imageUploadResponse = await octokit.repos.createOrUpdateFileContents({
-                    owner: "andy1388",
-                    repo: "html_1",
-                    path: `images/${filename}`,
-                    message: `Upload image: ${filename}`,
-                    content: base64Data,
-                    branch: "main"
-                });
+                // 添加错误处理和重试逻辑
+                let retryCount = 0;
+                const maxRetries = 3;
+                let imageUploadResponse;
 
-                console.log('Image upload response:', {
-                    status: imageUploadResponse.status,
-                    path: imageUploadResponse.data?.content?.path
-                });
+                while (retryCount < maxRetries) {
+                    try {
+                        imageUploadResponse = await octokit.repos.createOrUpdateFileContents({
+                            owner: "andy1388",
+                            repo: "html_1",
+                            path: `images/${filename}`,
+                            message: `Upload image: ${filename}`,
+                            content: base64Data,
+                            branch: "main"
+                        });
+                        break; // 如果成功，跳出循环
+                    } catch (err) {
+                        retryCount++;
+                        if (retryCount === maxRetries) {
+                            throw err;
+                        }
+                        // 等待一段时间后重试
+                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                    }
+                }
 
-                if (imageUploadResponse.data.content) {
-                    console.log('Image uploaded successfully');
-                } else {
+                if (!imageUploadResponse?.data?.content) {
                     throw new Error('圖片上傳響應無效');
                 }
+
+                // 添加图片URL到提交数据
+                submissionData.imageUrl = `https://raw.githubusercontent.com/andy1388/html_1/main/images/${filename}`;
+
             } catch (uploadError) {
                 console.error('Image upload error:', {
                     message: uploadError.message,
