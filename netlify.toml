@@ -2,10 +2,13 @@
   functions = "functions"
   publish = "."
 
+# 添加代理規則
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
 [[headers]]
   for = "/*"
     [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, HEAD, POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type"
-    Access-Control-Max-Age = "86400" 
+    Access-Control-Allow-Origin = "*" 

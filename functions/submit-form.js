@@ -10,51 +10,15 @@ const octokit = new Octokit({
 });
 
 export const handler = async function(event, context) {
-    // 設置 CORS 頭部
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Content-Type': 'application/json'
-    };
-
-    // 處理 OPTIONS 請求
-    if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers,
-            body: ''
-        };
-    }
-
     try {
-        // 檢查請求方法
-        if (event.httpMethod !== 'POST') {
-            return {
-                statusCode: 405,
-                headers,
-                body: JSON.stringify({ message: '方法不允許' })
-            };
-        }
-
         // 解析請求數據
-        let data;
-        try {
-            data = JSON.parse(event.body);
-            console.log('Received data:', data);
-        } catch (parseError) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ message: '無效的請求數據格式' })
-            };
-        }
+        const data = JSON.parse(event.body);
+        console.log('Received data:', data);
 
         // 基本驗證
         if (!data.name || !data.email || !data.message) {
             return {
                 statusCode: 400,
-                headers,
                 body: JSON.stringify({ message: "必填字段缺失" })
             };
         }
@@ -86,7 +50,6 @@ export const handler = async function(event, context) {
 
         return {
             statusCode: 200,
-            headers,
             body: JSON.stringify({
                 message: "提交成功"
             })
@@ -96,7 +59,6 @@ export const handler = async function(event, context) {
         console.error('Handler error:', error);
         return {
             statusCode: 500,
-            headers,
             body: JSON.stringify({
                 message: '提交失敗',
                 error: error.message
