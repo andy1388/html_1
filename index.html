@@ -186,29 +186,12 @@
             
             try {
                 const imageFile = document.getElementById('image').files[0];
+                if (imageFile && imageFile.size > 2 * 1024 * 1024) {
+                    throw new Error('圖片大小不能超過2MB');
+                }
+
                 let imageBase64 = '';
-                
                 if (imageFile) {
-                    console.log('Processing image:', imageFile.name);
-                    
-                    // 檢查文件大小
-                    if (imageFile.size > 2 * 1024 * 1024) {
-                        throw new Error('圖片大小不能超過2MB');
-                    }
-
-                    // 檢查文件類型
-                    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-                    if (!allowedTypes.includes(imageFile.type)) {
-                        throw new Error('只支持 JPG、PNG 和 GIF 格式的圖片');
-                    }
-
-                    console.log('Processing image:', {
-                        name: imageFile.name,
-                        size: imageFile.size,
-                        type: imageFile.type
-                    });
-
-                    // 將圖片轉換為Base64
                     imageBase64 = await new Promise((resolve) => {
                         const reader = new FileReader();
                         reader.onload = (e) => resolve(e.target.result);
@@ -225,32 +208,22 @@
                     filename: imageFile ? `${Date.now()}-${imageFile.name}` : ''
                 };
 
-                console.log('Submitting form with image:', formData.filename);
-
                 const response = await fetch('https://subtle-caramel-914e7d.netlify.app/.netlify/functions/submit-form', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
 
                 const result = await response.json();
-
+                
                 if (!response.ok) {
-                    console.error('Server error:', result);
-                    throw new Error(result.error || result.message || '提交失敗');
+                    throw new Error(result.error || '提交失敗');
                 }
 
-                if (response.ok) {
-                    console.log('Submission successful:', result);
-                    alert('提交成功！');
-                    this.reset();
-                    document.getElementById('imagePreview').innerHTML = 
-                        '<span class="upload-placeholder">預覽圖片將顯示在這裡</span>';
-                } else {
-                    throw new Error(result.message || '提交失敗');
-                }
+                alert('提交成功！');
+                this.reset();
+                document.getElementById('imagePreview').innerHTML = 
+                    '<span class="upload-placeholder">預覽圖片將顯示在這裡</span>';
             } catch (error) {
                 console.error('提交錯誤：', error);
                 alert(error.message || '提交失敗，請稍後重試');
