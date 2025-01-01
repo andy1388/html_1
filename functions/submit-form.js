@@ -10,28 +10,38 @@ const octokit = new Octokit({
 });
 
 export const handler = async function(event, context) {
-    // 簡化 CORS 頭部
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
+    // 設置基本的 CORS 響應頭
+    const corsHeaders = {
+        'Access-Control-Allow-Origin': 'https://andy1388.github.io',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Content-Type': 'application/json'
+        'Access-Control-Max-Age': '86400'
     };
 
-    // 處理 OPTIONS 請求
+    // 處理預檢請求
     if (event.httpMethod === 'OPTIONS') {
         return {
-            statusCode: 204,
-            headers,
+            statusCode: 200,
+            headers: corsHeaders,
             body: ''
         };
     }
 
     try {
-        // 檢查 Token
+        // 所有響應都添加 CORS 頭部
+        const headers = {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+        };
+
+        // 其餘代碼保持不變，但確保每個響應都包含 headers
         if (!process.env.GITHUB_TOKEN) {
             console.error('GitHub Token is missing');
-            throw new Error('GitHub Token 未配置');
+            return {
+                statusCode: 500,
+                headers,
+                body: JSON.stringify({ message: 'GitHub Token 未配置' })
+            };
         }
 
         // 解析請求數據
@@ -131,18 +141,16 @@ export const handler = async function(event, context) {
         };
 
     } catch (error) {
-        console.error('Handler error:', {
-            message: error.message,
-            stack: error.stack
-        });
-        
+        console.error('Handler error:', error);
         return {
             statusCode: 500,
-            headers,
+            headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
                 message: "提交失敗",
-                error: error.message,
-                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+                error: error.message
             })
         };
     }
