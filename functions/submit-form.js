@@ -59,13 +59,58 @@ export const handler = async function(event, context) {
             }
 
             try {
-                // 添加错误处理和重试逻辑
+                // 首先检查仓库访问权限
+                try {
+                    await octokit.repos.get({
+                        owner: "andy1388",
+                        repo: "html_1"
+                    });
+                } catch (repoError) {
+                    console.error('Repository access error:', repoError);
+                    throw new Error('無法訪問倉庫，請檢查權限設置');
+                }
+
+                // 检查images目录是否存在，如果不存在则创建
+                try {
+                    await octokit.repos.getContent({
+                        owner: "andy1388",
+                        repo: "html_1",
+                        path: "images"
+                    });
+                } catch (dirError) {
+                    // 如果目录不存在，创建它
+                    if (dirError.status === 404) {
+                        await octokit.repos.createOrUpdateFileContents({
+                            owner: "andy1388",
+                            repo: "html_1",
+                            path: "images/.gitkeep",
+                            message: "Create images directory",
+                            content: "",
+                            branch: "main"
+                        });
+                    }
+                }
+
+                // 尝试上传图片
                 let retryCount = 0;
                 const maxRetries = 3;
                 let imageUploadResponse;
 
                 while (retryCount < maxRetries) {
                     try {
+                        // 检查文件是否已存在
+                        try {
+                            await octokit.repos.getContent({
+                                owner: "andy1388",
+                                repo: "html_1",
+                                path: `images/${filename}`
+                            });
+                            // 如果文件存在，修改文件名
+                            filename = `${Date.now()}-${filename}`;
+                        } catch (fileError) {
+                            // 文件不存在，可以继续
+                        }
+
                         imageUploadResponse = await octokit.repos.createOrUpdateFileContents({
                             owner: "andy1388",
                             repo: "html_1",
@@ -74,13 +119,13 @@ export const handler = async function(event, context) {
                             content: base64Data,
                             branch: "main"
                         });
-                        break; // 如果成功，跳出循环
+                        break;
                     } catch (err) {
+                        console.error(`Upload attempt ${retryCount + 1} failed:`, err);
                         retryCount++;
                         if (retryCount === maxRetries) {
-                            throw err;
+                            throw new Error(`上傳失敗: ${err.message}`);
                         }
-                        // 等待一段时间后重试
                         await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
                     }
                 }
@@ -89,8 +134,9 @@ export const handler = async function(event, context) {
                     throw new Error('圖片上傳響應無效');
                 }
 
-                // 添加图片URL到提交数据
+                // 使用完整的原始URL
                 submissionData.imageUrl = `https://raw.githubusercontent.com/andy1388/html_1/main/images/${filename}`;
+                console.log('Image URL:', submissionData.imageUrl);
 
             } catch (uploadError) {
                 console.error('Image upload error:', {
