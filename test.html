@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>測試頁面</title>
+    <title>測試頁面 - 提交記錄</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -20,43 +20,89 @@
             margin-bottom: 20px;
             border-radius: 5px;
         }
-        button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
+        .submission-item {
+            background-color: #f5f5f5;
+            padding: 15px;
+            margin-bottom: 10px;
             border-radius: 4px;
-            cursor: pointer;
         }
-        button:hover {
-            background-color: #45a049;
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .nav-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .nav-link:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>測試頁面</h1>
+        <nav>
+            <a href="index.html" class="nav-link">返回主頁</a>
+        </nav>
+        
+        <h1>提交記錄查看</h1>
         
         <div class="test-section">
-            <h2>測試區域 1</h2>
-            <p>這是一個測試段落。您可以在這裡添加任何需要測試的內容。</p>
-            <button onclick="alert('測試按鈕已點擊！')">測試按鈕</button>
-        </div>
-
-        <div class="test-section">
-            <h2>測試區域 2</h2>
-            <p>這是另一個測試區域。您可以在這裡進行其他測試。</p>
-            <ul>
-                <li>測試項目 1</li>
-                <li>測試項目 2</li>
-                <li>測試項目 3</li>
-            </ul>
+            <h2>最近提交記錄</h2>
+            <div id="submissions-list">
+                <!-- 這裡將通過JavaScript動態載入提交記錄 -->
+            </div>
         </div>
     </div>
 
     <script>
-        // 這裡可以添加JavaScript代碼
-        console.log('測試頁面已加載');
+        async function loadSubmissions() {
+            try {
+                // 獲取submissions目錄下的所有JSON文件
+                const response = await fetch('https://api.github.com/repos/andy1388/html_1/contents/submissions');
+                const files = await response.json();
+                
+                const submissionsList = document.getElementById('submissions-list');
+                
+                // 按時間戳降序排序文件
+                files.sort((a, b) => b.name.localeCompare(a.name));
+                
+                for (const file of files) {
+                    if (file.name.endsWith('.json')) {
+                        // 獲取每個文件的內容
+                        const contentResponse = await fetch(file.download_url);
+                        const submission = await contentResponse.json();
+                        
+                        // 創建提交記錄的HTML元素
+                        const submissionDiv = document.createElement('div');
+                        submissionDiv.className = 'submission-item';
+                        
+                        const timestamp = new Date(submission.timestamp);
+                        
+                        submissionDiv.innerHTML = `
+                            <p><strong>姓名：</strong>${submission.name}</p>
+                            <p><strong>郵箱：</strong>${submission.email}</p>
+                            <p><strong>留言：</strong>${submission.message}</p>
+                            <p class="timestamp">提交時間：${timestamp.toLocaleString('zh-TW')}</p>
+                        `;
+                        
+                        submissionsList.appendChild(submissionDiv);
+                    }
+                }
+            } catch (error) {
+                console.error('載入提交記錄時發生錯誤：', error);
+                document.getElementById('submissions-list').innerHTML = 
+                    '<p style="color: red;">載入提交記錄時發生錯誤，請稍後重試。</p>';
+            }
+        }
+
+        // 頁面加載時執行
+        window.addEventListener('load', loadSubmissions);
     </script>
 </body>
 </html> 
