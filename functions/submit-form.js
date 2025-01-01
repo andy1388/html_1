@@ -39,7 +39,40 @@ export const handler = async function(event, context) {
             // 從Base64中提取實際的圖片數據
             const base64Data = image.split(',')[1];
             
+            if (!base64Data) {
+                console.error('Invalid image data');
+                return {
+                    statusCode: 400,
+                    body: JSON.stringify({ 
+                        message: "圖片數據無效",
+                        error: "Invalid image data format" 
+                    })
+                };
+            }
+            
             try {
+                // 首先檢查images目錄是否存在
+                try {
+                    await octokit.repos.getContent({
+                        owner: "andy1388",
+                        repo: "html_1",
+                        path: "images"
+                    });
+                } catch (error) {
+                    // 如果目錄不存在，創建它
+                    if (error.status === 404) {
+                        console.log('Creating images directory...');
+                        await octokit.repos.createOrUpdateFileContents({
+                            owner: "andy1388",
+                            repo: "html_1",
+                            path: "images/.gitkeep",
+                            message: "Create images directory",
+                            content: "",
+                            branch: "main"
+                        });
+                    }
+                }
+
                 // 保存圖片到GitHub倉庫
                 const imageResponse = await octokit.repos.createOrUpdateFileContents({
                     owner: "andy1388",
@@ -61,7 +94,8 @@ export const handler = async function(event, context) {
                     statusCode: 500,
                     body: JSON.stringify({ 
                         message: "圖片保存失敗",
-                        error: error.message 
+                        error: error.message,
+                        details: error.stack
                     })
                 };
             }
