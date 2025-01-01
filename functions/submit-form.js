@@ -13,6 +13,7 @@ export const handler = async function(event, context) {
     try {
         console.log('Starting form submission handler');
         console.log('GitHub Token exists:', !!process.env.GITHUB_TOKEN);
+        console.log('GitHub Token length:', process.env.GITHUB_TOKEN?.length);
         
         const data = JSON.parse(event.body);
         const { name, email, message, image, timestamp, filename } = data;
@@ -43,6 +44,7 @@ export const handler = async function(event, context) {
         // 如果有圖片，直接嘗試上傳
         if (image && filename) {
             console.log('Processing image:', filename);
+            console.log('Image data length:', image.length);
             
             // 從Base64中提取實際的圖片數據
             const base64Data = image.split(',')[1];
@@ -52,6 +54,8 @@ export const handler = async function(event, context) {
             }
 
             try {
+                console.log('Attempting to upload image to GitHub...');
+                
                 // 直接嘗試上傳圖片
                 const imageResponse = await octokit.repos.createOrUpdateFileContents({
                     owner: "andy1388",
@@ -60,20 +64,22 @@ export const handler = async function(event, context) {
                     message: `Upload image: ${filename}`,
                     content: base64Data,
                     branch: "main"
+                }).catch(error => {
+                    console.error('GitHub API Error:', {
+                        status: error.status,
+                        message: error.message,
+                        response: error.response?.data
+                    });
+                    throw error;
                 });
 
-                console.log('Image upload response:', {
+                console.log('Image upload successful:', {
                     status: imageResponse.status,
                     path: imageResponse.data?.content?.path,
                     url: imageResponse.data?.content?.download_url
                 });
 
-                if (imageResponse.status === 201 || imageResponse.status === 200) {
-                    submissionData.imageUrl = `images/${filename}`;
-                    console.log('Image URL saved:', submissionData.imageUrl);
-                } else {
-                    throw new Error(`Unexpected response status: ${imageResponse.status}`);
-                }
+                submissionData.imageUrl = `images/${filename}`;
             } catch (error) {
                 console.error('Image upload error:', {
                     message: error.message,
@@ -81,7 +87,7 @@ export const handler = async function(event, context) {
                     response: error.response?.data,
                     stack: error.stack
                 });
-                throw error;
+                throw new Error(`圖片上傳失敗: ${error.message}`);
             }
         }
 
