@@ -11,6 +11,12 @@ const octokit = new Octokit({
 
 export const handler = async function(event, context) {
     try {
+        // 檢查 Token
+        if (!process.env.GITHUB_TOKEN) {
+            console.error('GitHub Token is missing');
+            throw new Error('GitHub Token 未配置');
+        }
+
         const data = JSON.parse(event.body);
         const { name, email, message, image, timestamp, filename } = data;
 
@@ -34,17 +40,22 @@ export const handler = async function(event, context) {
             timestamp
         };
 
-        // 處理圖片上傳
+        // 檢查圖片數據
         if (image && filename) {
-            try {
-                // 從 Base64 提取圖片數據
-                const base64Data = image.split(',')[1];
-                if (!base64Data) {
-                    throw new Error('無效的圖片數據');
-                }
+            console.log('Processing image:', {
+                filename,
+                imageLength: image.length,
+                hasBase64Prefix: image.startsWith('data:image/')
+            });
 
-                // 上傳圖片
-                await octokit.repos.createOrUpdateFileContents({
+            const base64Data = image.split(',')[1];
+            if (!base64Data) {
+                throw new Error('圖片數據格式無效');
+            }
+
+            try {
+                // 嘗試上傳圖片
+                const imageUploadResponse = await octokit.repos.createOrUpdateFileContents({
                     owner: "andy1388",
                     repo: "html_1",
                     path: `images/${filename}`,
@@ -53,11 +64,23 @@ export const handler = async function(event, context) {
                     branch: "main"
                 });
 
-                // 添加圖片URL到提交數據
-                submissionData.imageUrl = `images/${filename}`;
-            } catch (error) {
-                console.error('圖片上傳錯誤:', error);
-                throw new Error('圖片上傳失敗');
+                console.log('Image upload response:', {
+                    status: imageUploadResponse.status,
+                    path: imageUploadResponse.data?.content?.path
+                });
+
+                if (imageUploadResponse.data.content) {
+                    console.log('Image uploaded successfully');
+                } else {
+                    throw new Error('圖片上傳響應無效');
+                }
+            } catch (uploadError) {
+                console.error('Image upload error:', {
+                    message: uploadError.message,
+                    status: uploadError.status,
+                    response: uploadError.response?.data
+                });
+                throw new Error(`圖片上傳失敗: ${uploadError.message}`);
             }
         }
 
@@ -81,12 +104,16 @@ export const handler = async function(event, context) {
         };
 
     } catch (error) {
-        console.error('錯誤:', error);
+        console.error('Handler error:', {
+            message: error.message,
+            stack: error.stack
+        });
         return {
             statusCode: 500,
             body: JSON.stringify({
                 message: "提交失敗",
-                error: error.message
+                error: error.message,
+                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
             })
         };
     }

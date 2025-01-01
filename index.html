@@ -215,9 +215,10 @@
                 });
 
                 const result = await response.json();
-                
+                console.log('Server response:', result);
+
                 if (!response.ok) {
-                    throw new Error(result.error || '提交失敗');
+                    throw new Error(result.error || result.message || '提交失敗');
                 }
 
                 alert('提交成功！');
