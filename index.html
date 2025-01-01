@@ -219,9 +219,11 @@
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'Origin': 'https://andy1388.github.io'
                     },
-                    mode: 'cors', // 明確指定使用 CORS
+                    credentials: 'omit',
+                    mode: 'cors',
                     body: JSON.stringify(formData)
                 });
 

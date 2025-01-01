@@ -13,9 +13,10 @@ export const handler = async function(event, context) {
     // 修改 CORS 頭部
     const headers = {
         'Access-Control-Allow-Origin': '*',  // 暫時允許所有來源
-        'Access-Control-Allow-Headers': '*',
-        'Access-Control-Allow-Methods': '*',
-        'Access-Control-Max-Age': '86400'
+        'Access-Control-Allow-Headers': 'Content-Type, Accept, Origin, X-Requested-With',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Max-Age': '86400',
+        'Content-Type': 'application/json'
     };
 
     // 處理 OPTIONS 請求
