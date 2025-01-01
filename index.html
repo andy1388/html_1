@@ -180,22 +180,33 @@
         document.getElementById('userForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const imageFile = document.getElementById('image').files[0];
-            let imageBase64 = '';
+            const submitButton = this.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = '提交中...';
             
             try {
+                const imageFile = document.getElementById('image').files[0];
+                let imageBase64 = '';
+                
                 if (imageFile) {
                     console.log('Processing image:', imageFile.name);
                     
                     // 檢查文件大小
-                    if (imageFile.size > 5 * 1024 * 1024) {
-                        throw new Error('圖片大小不能超過5MB');
+                    if (imageFile.size > 2 * 1024 * 1024) {
+                        throw new Error('圖片大小不能超過2MB');
                     }
 
                     // 檢查文件類型
-                    if (!imageFile.type.startsWith('image/')) {
-                        throw new Error('只能上傳圖片文件');
+                    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                    if (!allowedTypes.includes(imageFile.type)) {
+                        throw new Error('只支持 JPG、PNG 和 GIF 格式的圖片');
                     }
+
+                    console.log('Processing image:', {
+                        name: imageFile.name,
+                        size: imageFile.size,
+                        type: imageFile.type
+                    });
 
                     // 將圖片轉換為Base64
                     imageBase64 = await new Promise((resolve) => {
@@ -226,6 +237,11 @@
 
                 const result = await response.json();
 
+                if (!response.ok) {
+                    console.error('Server error:', result);
+                    throw new Error(result.error || result.message || '提交失敗');
+                }
+
                 if (response.ok) {
                     console.log('Submission successful:', result);
                     alert('提交成功！');
@@ -238,6 +254,9 @@
             } catch (error) {
                 console.error('提交錯誤：', error);
                 alert(error.message || '提交失敗，請稍後重試');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = '提交';
             }
         });
     </script>

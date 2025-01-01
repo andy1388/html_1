@@ -11,10 +11,18 @@ const octokit = new Octokit({
 
 export const handler = async function(event, context) {
     try {
+        console.log('Starting form submission handler');
+        console.log('GitHub Token exists:', !!process.env.GITHUB_TOKEN);
+        
         const data = JSON.parse(event.body);
         const { name, email, message, image, timestamp, filename } = data;
         
-        console.log('Received submission with filename:', filename);
+        console.log('Received submission:', { name, email, hasImage: !!image, filename });
+
+        // 檢查 GitHub Token
+        if (!process.env.GITHUB_TOKEN) {
+            throw new Error('GitHub Token not configured');
+        }
 
         // 基本數據驗證
         if (!name || !email || !message) {
@@ -32,7 +40,7 @@ export const handler = async function(event, context) {
             timestamp
         };
 
-        // 如果有圖片，保存圖片文件
+        // 如果有圖片，直接嘗試上傳
         if (image && filename) {
             console.log('Processing image:', filename);
             
@@ -40,40 +48,11 @@ export const handler = async function(event, context) {
             const base64Data = image.split(',')[1];
             
             if (!base64Data) {
-                console.error('Invalid image data');
-                return {
-                    statusCode: 400,
-                    body: JSON.stringify({ 
-                        message: "圖片數據無效",
-                        error: "Invalid image data format" 
-                    })
-                };
+                throw new Error('Invalid image data format');
             }
-            
-            try {
-                // 首先檢查images目錄是否存在
-                try {
-                    await octokit.repos.getContent({
-                        owner: "andy1388",
-                        repo: "html_1",
-                        path: "images"
-                    });
-                } catch (error) {
-                    // 如果目錄不存在，創建它
-                    if (error.status === 404) {
-                        console.log('Creating images directory...');
-                        await octokit.repos.createOrUpdateFileContents({
-                            owner: "andy1388",
-                            repo: "html_1",
-                            path: "images/.gitkeep",
-                            message: "Create images directory",
-                            content: "",
-                            branch: "main"
-                        });
-                    }
-                }
 
-                // 保存圖片到GitHub倉庫
+            try {
+                // 直接嘗試上傳圖片
                 const imageResponse = await octokit.repos.createOrUpdateFileContents({
                     owner: "andy1388",
                     repo: "html_1",
@@ -83,21 +62,26 @@ export const handler = async function(event, context) {
                     branch: "main"
                 });
 
-                console.log('Image uploaded successfully:', imageResponse.data.content.path);
+                console.log('Image upload response:', {
+                    status: imageResponse.status,
+                    path: imageResponse.data?.content?.path,
+                    url: imageResponse.data?.content?.download_url
+                });
 
-                // 在JSON中添加完整的圖片URL
-                submissionData.imageUrl = `images/${filename}`;
-                console.log('Image URL saved:', submissionData.imageUrl);
+                if (imageResponse.status === 201 || imageResponse.status === 200) {
+                    submissionData.imageUrl = `images/${filename}`;
+                    console.log('Image URL saved:', submissionData.imageUrl);
+                } else {
+                    throw new Error(`Unexpected response status: ${imageResponse.status}`);
+                }
             } catch (error) {
-                console.error("保存圖片失敗:", error);
-                return {
-                    statusCode: 500,
-                    body: JSON.stringify({ 
-                        message: "圖片保存失敗",
-                        error: error.message,
-                        details: error.stack
-                    })
-                };
+                console.error('Image upload error:', {
+                    message: error.message,
+                    status: error.status,
+                    response: error.response?.data,
+                    stack: error.stack
+                });
+                throw error;
             }
         }
 
@@ -124,12 +108,20 @@ export const handler = async function(event, context) {
             })
         };
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Error details:", {
+            message: error.message,
+            stack: error.stack,
+            status: error.status,
+            response: error.response?.data
+        });
+        
         return {
             statusCode: 500,
             body: JSON.stringify({ 
                 message: "服務器錯誤",
-                error: error.message
+                error: error.message,
+                details: error.stack,
+                status: error.status
             })
         };
     }
