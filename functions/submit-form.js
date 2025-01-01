@@ -10,40 +10,51 @@ const octokit = new Octokit({
 });
 
 export const handler = async function(event, context) {
-    // 設置基本的 CORS 響應頭
+    // 允許所有來源的 CORS 請求
     const corsHeaders = {
-        'Access-Control-Allow-Origin': 'https://andy1388.github.io',
-        'Access-Control-Allow-Methods': '*',
-        'Access-Control-Allow-Headers': '*'
+        'Access-Control-Allow-Origin': '*',  // 改為允許所有來源
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400',
+        'Access-Control-Allow-Credentials': 'true'
     };
 
-    // 處理預檢請求
+    // 如果是預檢請求，立即返回
     if (event.httpMethod === 'OPTIONS') {
         return {
-            statusCode: 200,
+            statusCode: 204,  // 使用 204 No Content
             headers: corsHeaders,
             body: ''
         };
     }
 
+    // 確保每個響應都包含 CORS 頭部
+    const headers = {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+    };
+
     try {
-        // 所有響應都添加 CORS 頭部
-        const headers = {
-            ...corsHeaders,
-            'Content-Type': 'application/json'
-        };
+        // 檢查請求方法
+        if (event.httpMethod !== 'POST') {
+            return {
+                statusCode: 405,
+                headers,
+                body: JSON.stringify({ message: '方法不允許' })
+            };
+        }
 
         // 解析請求數據
         let data;
         try {
             data = JSON.parse(event.body);
-            console.log('Received data:', data); // 添加日誌
+            console.log('Received data:', data);
         } catch (parseError) {
             console.error('Parse error:', parseError);
             return {
                 statusCode: 400,
                 headers,
-                body: JSON.stringify({ message: "無效的請求數據格式" })
+                body: JSON.stringify({ message: '無效的請求數據格式' })
             };
         }
 
@@ -93,12 +104,9 @@ export const handler = async function(event, context) {
         console.error('Handler error:', error);
         return {
             statusCode: 500,
-            headers: {
-                ...corsHeaders,
-                'Content-Type': 'application/json'
-            },
+            headers,  // 確保錯誤響應也包含 CORS 頭部
             body: JSON.stringify({
-                message: "提交失敗",
+                message: '提交失敗',
                 error: error.message
             })
         };
