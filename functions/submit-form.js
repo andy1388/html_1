@@ -34,7 +34,6 @@ export const handler = async function(event, context) {
             'Content-Type': 'application/json'
         };
 
-        // 其餘代碼保持不變，但確保每個響應都包含 headers
         if (!process.env.GITHUB_TOKEN) {
             console.error('GitHub Token is missing');
             return {
@@ -57,7 +56,7 @@ export const handler = async function(event, context) {
             };
         }
 
-        const { name, email, message, image, timestamp, filename } = data;
+        const { name, email, message, timestamp } = data;
 
         // 基本驗證
         if (!name || !email || !message) {
@@ -76,50 +75,6 @@ export const handler = async function(event, context) {
             timestamp
         };
 
-        // 檢查圖片數據
-        if (image && filename) {
-            console.log('Processing image:', {
-                filename,
-                imageLength: image.length,
-                hasBase64Prefix: image.startsWith('data:image/')
-            });
-
-            const base64Data = image.split(',')[1];
-            if (!base64Data) {
-                throw new Error('圖片數據格式無效');
-            }
-
-            try {
-                // 嘗試上傳圖片
-                const imageUploadResponse = await octokit.repos.createOrUpdateFileContents({
-                    owner: "andy1388",
-                    repo: "html_1",
-                    path: `images/${filename}`,
-                    message: `Upload image: ${filename}`,
-                    content: base64Data,
-                    branch: "main"
-                });
-
-                console.log('Image upload response:', {
-                    status: imageUploadResponse.status,
-                    path: imageUploadResponse.data?.content?.path
-                });
-
-                if (imageUploadResponse.data.content) {
-                    console.log('Image uploaded successfully');
-                } else {
-                    throw new Error('圖片上傳響應無效');
-                }
-            } catch (uploadError) {
-                console.error('Image upload error:', {
-                    message: uploadError.message,
-                    status: uploadError.status,
-                    response: uploadError.response?.data
-                });
-                throw new Error(`圖片上傳失敗: ${uploadError.message}`);
-            }
-        }
-
         // 保存提交數據
         const jsonFilename = `submissions/${timestamp.replace(/[:.]/g, '-')}Z.json`;
         await octokit.repos.createOrUpdateFileContents({
@@ -135,8 +90,7 @@ export const handler = async function(event, context) {
             statusCode: 200,
             headers,
             body: JSON.stringify({
-                message: "提交成功",
-                imageUrl: submissionData.imageUrl || null
+                message: "提交成功"
             })
         };
 
