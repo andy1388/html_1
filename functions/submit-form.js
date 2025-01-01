@@ -5,6 +5,30 @@ import 'isomorphic-fetch';
 dotenv.config();
 
 export const handler = async function(event, context) {
+    // 添加 CORS 头
+    const headers = {
+        'Access-Control-Allow-Origin': 'https://andy1388.github.io',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    };
+
+    // 处理 OPTIONS 请求
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers,
+            body: ''
+        };
+    }
+
+    if (event.httpMethod !== 'POST') {
+        return { 
+            statusCode: 405, 
+            headers,
+            body: 'Method Not Allowed' 
+        };
+    }
+
     // 添加调试日志
     console.log('Environment variables:', {
         tokenPrefix: process.env.GITHUB_TOKEN?.substring(0, 4),
@@ -24,11 +48,6 @@ export const handler = async function(event, context) {
             statusCode: 500,
             body: JSON.stringify({ error: 'Server configuration error' })
         };
-    }
-
-    // 确保是 POST 请求
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
@@ -79,6 +98,7 @@ export const handler = async function(event, context) {
         return {
             statusCode: 200,
             headers: {
+                ...headers,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ 
@@ -97,6 +117,7 @@ export const handler = async function(event, context) {
         return {
             statusCode: 500,
             headers: {
+                ...headers,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ 
